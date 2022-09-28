@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>数据库文档生成</title>
+    <script src="js/vue.js"></script>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="css/element-ui/element-ui.css">
+    <link rel="stylesheet" href="css/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/generator.css">
+    <!-- 引入组件库 -->
+    <script src="js/element-ui/element-ui.js"></script>
+    <script src="js/axios.min.js"></script>
+</head>
+<body class="home-body">
+<div id="doc" style="height: 100%">
+    <el-container style="height: 100%">
+        <el-header>
+            <el-menu
+                    :default-active="activeIndex"
+                    class="el-menu-demo"
+                    mode="horizontal"
+                    @select="handleSelect"
+                    background-color="#ffffff"
+                    text-color="#8cc4fd"
+                    active-text-color="#1989fa">
+                <el-menu-item index="1">代码生成</el-menu-item>
+                <el-menu-item index="2">文档生成</el-menu-item>
+            </el-menu>
+        </el-header>
+        <el-main>
+            <el-descriptions title="数据库文档生成" :column="3" size="mini" border class="search">
+                <template slot="extra">
+                    <div style="color: #ff0114;font-weight: bold">*{{msg}}*</div>
+                </template>
+                <el-descriptions-item style="display: flex;justify-content: space-between;">
+                    <template slot="label">
+                        <el-tag size="mini">数据库类型：</el-tag>
+                    </template>
+                    <el-select v-model="dataSourceVo.dbType" size="small" @change="changeDbType" clearable>
+                        <el-option
+                                v-for="item in DbOptions"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                                :disabled="item.disabled">
+                        </el-option>
+                    </el-select>
+                </el-descriptions-item>
+                <el-descriptions-item :span="2">
+                    <template slot="label">
+                        <el-tag size="mini">数据库连接地址：</el-tag>
+                    </template>
+                    <el-input size="mini" v-model="dataSourceVo.urlHost" style="min-width: 350px">
+                        <template slot="prepend">{{urlPrepend}}</template>
+                        <template slot="append">
+                        </template>
+                    </el-input>
+                </el-descriptions-item>
+                <el-descriptions-item>
+                    <template slot="label">
+                        <el-tag size="mini">数据库用户名：</el-tag>
+                    </template>
+                    <el-input size="mini" v-model="dataSourceVo.username" clearable></el-input>
+                </el-descriptions-item>
+                <el-descriptions-item :span="2">
+                    <template slot="label">
+                        <el-tag size="mini">数据库密码：</el-tag>
+                    </template>
+                    <div style="display: flex;justify-content: space-between;">
+                        <el-input size="mini" v-model="dataSourceVo.password" clearable show-password></el-input>
+                        <el-button type="primary" size="mini" @click="connect" :disabled="!connectBtnEnabled">
+                            文档生成
+                        </el-button>
+                    </div>
+                </el-descriptions-item>
+
+            </el-descriptions>
+
+
+        </el-main>
+    </el-container>
+
+</div>
+
+
+<script>
+    new Vue({
+        el: "#doc",
+        data() {
+            return {
+                activeIndex: '2',
+                search: '',
+                DbOptions: [
+                    {
+                        value: 'postgresql',
+                        label: 'postgresql',
+                        disabled: true
+                    },
+                    {
+                        value: 'mysql',
+                        label: 'mysql',
+                        disabled: false
+                    }],
+                responseResult: 'waiting',
+                msg: '数据库未连接',
+                connectBtnEnabled: true,
+                urlPrepend: 'jdbc:postgresql://',
+                dataSourceVo: {
+                    username: "postgres",
+                    password: "123456",
+                    url: "",
+                    dbType: "postgresql",
+                    urlHost: "localhost:5432/test?useSSL=false"
+                }
+            };
+        },
+        methods: {
+            handleSelect(key, keyPath) {
+                if (key == 1) {
+                    window.open('index.html', '_self');
+                }
+            },
+            changeDbType(value) {
+                if (value) {
+                    if ("postgresql" == value) {
+                        this.urlPrepend = 'jdbc:postgresql://';
+                        this.dataSourceVo.urlHost = 'localhost:5432/test?useSSL=false';
+                        this.dataSourceVo.username = ''
+                        this.dataSourceVo.password = ''
+                    } else {
+                        this.urlPrepend = 'jdbc:mysql://';
+                        this.dataSourceVo.urlHost = 'localhost:3306/test';
+                        this.dataSourceVo.username = ''
+                        this.dataSourceVo.password = ''
+                    }
+                }
+            },
+            connect() {
+                this.tableData = [];
+                let _this = this;
+                if ("postgresql" == this.dataSourceVo.dbType) {
+                    this.dataSourceVo.url = "jdbc:postgresql://" + this.dataSourceVo.urlHost;
+                } else {
+                    this.dataSourceVo.url = "jdbc:mysql://" + this.dataSourceVo.urlHost + "?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai";
+                }
+                axios.post('/generationDoc', this.dataSourceVo)
+                    .then(function (response) {
+                        let data = response.data;
+                        _this.msg = data.msg;
+                        if (data && data.status == 200) {
+                            _this.openMessage(_this.msg, "success")
+                        } else {
+                            _this.openMessage(_this.msg, "error")
+                        }
+                        _this.connectBtnEnabled = true;
+                    })
+                    .catch(function (error) {
+                        console.log(error);
+                        _this.openMessage(error, "error")
+                    });
+            },
+            openMessage(msg, type) {
+                this.$message({
+                    showClose: true,
+                    message: msg,
+                    type: type
+                });
+            }
+        }
+    })
+</script>
+
+</body>
+</html>

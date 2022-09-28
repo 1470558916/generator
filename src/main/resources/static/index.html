@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>代码生成</title>
+    <script src="js/vue.js"></script>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="css/element-ui/element-ui.css">
+    <link rel="stylesheet" href="css/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/generator.css">
+    <!-- 引入组件库 -->
+    <script src="js/element-ui/element-ui.js"></script>
+    <script src="js/axios.min.js"></script>
+
+</head>
+<body class="home-body">
+<div id="app" style="height: 100%">
+    <el-container style="height: 100%">
+        <el-container>
+            <el-header class="home-header">
+                <el-menu
+                        :default-active="activeIndex"
+                        class="el-menu-demo"
+                        mode="horizontal"
+                        @select="handleSelect"
+                        background-color="#ffffff"
+                        text-color="#8cc4fd"
+                        active-text-color="#1989fa">
+                    <el-menu-item index="1">代码生成</el-menu-item>
+                    <el-menu-item index="2">开发中</el-menu-item>
+                </el-menu>
+            </el-header>
+            <el-main>
+                <el-descriptions title="代码生成" :column="3" size="mini" border class="search">
+                    <template slot="extra">
+                        <div style="color: #ff0114;font-weight: bold">*{{msg}}*</div>
+                    </template>
+                    <el-descriptions-item style="display: flex;justify-content: space-between;">
+                        <template slot="label">
+                            <el-tag size="mini">数据库类型：</el-tag>
+                        </template>
+                        <el-select v-model="dataSourceVo.dbType" size="small" @change="changeDbType" clearable>
+                            <el-option
+                                    v-for="item in DbOptions"
+                                    :key="item.value"
+                                    :label="item.label"
+                                    :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-descriptions-item>
+                    <el-descriptions-item :span="2">
+                        <template slot="label">
+                            <el-tag size="mini">数据库连接地址：</el-tag>
+                        </template>
+                        <el-input size="mini" v-model="dataSourceVo.urlHost" style="min-width: 350px">
+                            <template slot="prepend">{{urlPrepend}}</template>
+                            <template slot="append">
+                            </template>
+                        </el-input>
+                    </el-descriptions-item>
+                    <el-descriptions-item>
+                        <template slot="label">
+                            <el-tag size="mini">数据库用户名：</el-tag>
+                        </template>
+                        <el-input size="mini" v-model="dataSourceVo.username" clearable></el-input>
+                    </el-descriptions-item>
+                    <el-descriptions-item  :span="2">
+                        <template slot="label">
+                            <el-tag size="mini">数据库密码：</el-tag>
+                        </template>
+                        <div style="display: flex;justify-content: space-between;">
+                            <el-input size="mini" v-model="dataSourceVo.password" clearable show-password></el-input>
+                            <el-button type="primary" size="mini" @click="connect" :disabled="!connectBtnEnabled">
+                                1、连接数据库
+                            </el-button>
+                        </div>
+                    </el-descriptions-item>
+                    <el-descriptions-item>
+                        <template slot="label">
+                            <el-tag size="mini">包名：</el-tag>
+                        </template>
+                        <el-input v-model="packageName" size="mini" style="width: 300px" clearable></el-input>
+                    </el-descriptions-item>
+                    <el-descriptions-item>
+                        <template slot="label">
+                            <el-tag size="mini">内部路径：</el-tag>
+                        </template>
+                        <el-input v-model="childPath" size="mini" style="width: 300px" placeholder="可为空" clearable></el-input>
+                    </el-descriptions-item>
+                    <el-descriptions-item style="display: flex;justify-content: space-between;">
+                        <template slot="label">
+                            <el-tag size="mini">模板选择：</el-tag>
+                        </template>
+                        <div style="width:100%;display: flex;justify-content: space-between;">
+                            <el-select v-model="tempPath" size="small" clearable>
+                                <el-option
+                                        v-for="item in templateOptions"
+                                        :key="item.value"
+                                        :label="item.label"
+                                        :value="item.value"
+                                        :disabled="item.disabled">
+                                </el-option>
+                            </el-select>
+                            <el-button type="primary" size="mini" @click="config">2、配置数据表</el-button>
+                        </div>
+                    </el-descriptions-item>
+                    <el-descriptions-item :span="3">
+                        <template slot="label">
+                            <el-tag size="mini">其他：</el-tag>
+                        </template>
+                        <div style="width:100%;display: flex;justify-content: space-between;">
+                            <el-checkbox v-model="slf4jFlag">是否使用Slf4j</el-checkbox>
+                            <el-checkbox v-model="lombokFlag">是否使用Lombok</el-checkbox>
+                            <el-checkbox v-model="swaggerFlag">是否使用swagger注解</el-checkbox>
+                            <el-checkbox v-model="batchFlag">
+                                是否生成批处理方法
+                                <el-tooltip class="item" effect="dark" content="使用拼sql方式(mysql的url后需加&allowMultiQueries=true)"
+                                            placement="top-end">
+                                    <i class="el-icon-warning-outline" style="color: #ff0114"></i>
+                                </el-tooltip>
+                            </el-checkbox>
+                            <el-button @click="generateCode" type="success" size="mini">
+                                3、生成代码
+                            </el-button>
+                        </div>
+                    </el-descriptions-item>
+                </el-descriptions>
+
+                <el-table
+                        ref="multipleTable"
+                        stripe
+                        border
+                        style="width: 95%;margin-left: 10px"
+                        size="mini"
+                        height="450"
+                        @row-click="rowClick"
+                        @selection-change="handleSelectionChange"
+                        header-row-class-name="head-row"
+                        :data="tableData ? tableData.filter(data => !search || data.tableName.toLowerCase().includes(search.toLowerCase())) : []">
+                    <el-table-column
+                            type="selection"
+                            width="55"
+                            align="center">
+                    </el-table-column>
+                    <el-table-column
+                            prop="tableName"
+                            width="180" header-align="center">
+                        <template slot="header" slot-scope="scope">
+                            <el-input
+                                    v-model="search" size="mini"
+                                    placeholder="输入表名称进行搜索" clearable/>
+                        </template>
+                    </el-table-column>
+                    <el-table-column
+                            label="实体类名称"
+                            width="160">
+                        <template slot-scope="scope">
+                            <el-input v-model="scope.row.modelName" size="mini"></el-input>
+                        </template>
+                    </el-table-column>
+                    <el-table-column
+                            label="Mapper名称">
+                        <template slot-scope="scope">
+                            <el-input v-model="scope.row.mapperName" size="mini"></el-input>
+                        </template>
+                    </el-table-column>
+                    <el-table-column
+                            label="Service名称">
+                        <template slot-scope="scope">
+                            <el-input v-model="scope.row.serviceName" size="mini"></el-input>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column
+                            label="ServiceImpl名称">
+                        <template slot-scope="scope">
+                            <el-input v-model="scope.row.serviceImplName" size="mini"></el-input>
+                        </template>
+                    </el-table-column>
+                    <el-table-column
+                            label="Controller名称">
+                        <template slot-scope="scope">
+                            <el-input v-model="scope.row.controllerName" size="mini"></el-input>
+                        </template>
+                    </el-table-column>
+                    <el-table-column fixed="right"
+                                     label="操作"
+                                     align="center"
+                                     width="80">
+                        <template slot-scope="scope">
+                            <el-tag type="danger" @click="deleteClick(scope.$index, tableData)">删除</el-tag>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+            </el-main>
+        </el-container>
+    </el-container>
+
+</div>
+<script>
+    new Vue({
+        el: "#app",
+        data: function () {
+            return {
+                activeIndex: '1',
+                search: '',
+                templateOptions: [{
+                    value: 'mybatis',
+                    label: 'mybatis',
+                    disabled: false
+                }, {
+                    value: 'mybatisplus',
+                    label: 'mybatis-plus',
+                    disabled: true
+                }, {
+                    value: 'jpa',
+                    label: 'jpa',
+                    disabled: true
+                }],
+                DbOptions: [
+                    {
+                        value: 'postgresql',
+                        label: 'postgresql'
+                    },
+                    {
+                        value: 'mysql',
+                        label: 'mysql'
+                    }],
+                tableData: [],
+                multipleSelection: [],
+                responseResult: 'waiting',
+                codePath: '',
+                childPath: '',
+                packageName: 'com.java.project',
+                tempPath: '', // 模板选择
+                slf4jFlag: true,
+                lombokFlag: true,
+                swaggerFlag: true,
+                batchFlag: false,
+                msg: '数据库未连接',
+                connectBtnEnabled: true,
+                urlPrepend:'jdbc:postgresql://',
+                dataSourceVo: {
+                    username: "postgres",
+                    password: "123456",
+                    url: "",
+                    dbType:"postgresql",
+                    urlHost: "localhost:5432/test"
+                }
+            }
+        },
+        mounted() {
+
+            this.tempPath = this.templateOptions[0].value
+            this.dataSourceVo.dbType = this.DbOptions[0].value
+        },
+        methods: {
+            handleSelect(key, keyPath) {
+                // if (key == 2) {
+                //     window.open('doc.html','_self');
+                // }
+                this.openMessage("还在开发中，敬请期待......" , "info")
+            },
+            rowClick(row, col, event) {
+                this.toggleSelection(row)
+            },
+            toggleSelection(row) {
+                if (row) {
+                    this.$refs.multipleTable.toggleRowSelection(row);
+                } else {
+                    this.$refs.multipleTable.clearSelection();
+                }
+            },
+            handleSelectionChange(val) {
+                this.multipleSelection = val;
+            },
+            deletemutil() {
+                if (this.multipleSelection) {
+                    for (rowdate in this.multipleSelection) {
+                        // this.tableData =this.tableData.filter(item => item.tableName != rowdate.tableName);
+                        for (let index = this.tableData.length - 1; index >= 0; index--) {
+                            if (this.tableData[index].tableName == this.multipleSelection[rowdate].tableName) {
+                                this.tableData.splice(index, 1)
+                            }
+                        }
+                    }
+                }
+            },
+            deleteClick(index, rows) {
+                rows.splice(index, 1);
+            },
+            changeDbType(value){
+                if (value) {
+                    if ("postgresql"== value) {
+                        this.urlPrepend='jdbc:postgresql://';
+                        this.dataSourceVo.urlHost = 'localhost:5432/test';
+                        this.dataSourceVo.username = ''
+                        this.dataSourceVo.password = ''
+                    } else {
+                        this.urlPrepend='jdbc:mysql://';
+                        this.dataSourceVo.urlHost = 'localhost:3306/test';
+                        this.dataSourceVo.username = ''
+                        this.dataSourceVo.password = ''
+                    }
+                }
+            },
+            generateCode() {
+                let _this = this;
+                console.log(this.multipleSelection);
+                if (!this.multipleSelection || this.multipleSelection.length < 1) {
+                    this.openMessage("请选择需要生成的表", "error");
+                    return
+                }
+                let obj = {
+                    tableClassList: _this.multipleSelection,
+                    tempPath: _this.tempPath,
+                    path: _this.childPath,
+                    slf4jFlag: _this.slf4jFlag,
+                    batchFlag: _this.batchFlag,
+                    swaggerFlag: _this.swaggerFlag,
+                    lombokFlag: _this.lombokFlag
+                }
+                // ,{responseType: 'blob',headers: {'Content-Type': 'application/json; application/octet-stream'}}
+                axios.post('/generateCode', JSON.parse(JSON.stringify(obj)), {
+                    responseType: 'blob',
+                    headers: {'Content-Type': 'application/json; application/octet-stream'}
+                }).then(function (response) {
+                        _this.multipleSelection = []
+                        _this.$refs.multipleTable.clearSelection();
+                        _this.connectBtnEnabled = true;
+                        console.log(response)
+
+                        let fileName = response.headers['content-disposition'].split('=')[1];
+                        if ('download' in document.createElement('a')) {
+                            let alink = document.createElement("a");
+                            const blob = new Blob([response.data], {type: "application/zip"})
+                            alink.download = fileName
+                            alink.style.display = "none"
+                            alink.href = URL.createObjectURL(blob)
+                            document.body.appendChild(alink)
+                            alink.click()
+                            URL.revokeObjectURL(alink.href)
+                            document.body.removeChild(alink)
+                        } else {
+                            // ie10下载
+                            navigator.msSaveOrOpenBlob(blob, downloadName)
+                        }
+
+                    })
+                    .catch(function (error) {
+                        _this.connectBtnEnabled = true;
+                        _this.multipleSelection = []
+                        _this.$refs.multipleTable.clearSelection();
+                        _this.msg = "生成失败";
+                        _this.openMessage( _this.msg, "error")
+                    });
+            },
+            config() {
+                let _this = this;
+                axios.post('/config', {packageName: this.packageName, tempPath: _this.tempPath})
+                    .then(function (response) {
+                        console.log(response);
+                        _this.msg = response.data.msg;
+                        _this.tableData = response.data.data;
+                        if (response.data.status == 200) {
+                            _this.openMessage(response.data.msg, "success")
+                        } else {
+                            _this.openMessage(response.data.msg, "error")
+                            _this.tempPath = _this.templateOptions[0].value
+                        }
+                    })
+                    .catch(function (error) {
+                        console.log(error);
+                    });
+            },
+            connect() {
+                this.tableData = [];
+                let _this = this;
+                if ("postgresql"== this.dataSourceVo.dbType) {
+                    this.dataSourceVo.url = "jdbc:postgresql://" + this.dataSourceVo.urlHost;
+                } else {
+                    this.dataSourceVo.url = "jdbc:mysql://" + this.dataSourceVo.urlHost + "?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai";
+                }
+                axios.post('/connect', this.dataSourceVo)
+                    .then(function (response) {
+                        let data = response.data;
+                        _this.msg = data.msg;
+                        if (data && data.status == 200) {
+                            _this.openMessage(_this.msg , "success")
+                        } else {
+                            _this.openMessage(_this.msg , "error")
+                        }
+                        _this.connectBtnEnabled = true;
+                    })
+                    .catch(function (error) {
+                        console.log(error);
+                        _this.openMessage(error, "error")
+                    });
+            },
+            openMessage(msg, type) {
+                this.$message({
+                    showClose: true,
+                    message: msg,
+                    type: type
+                });
+            }
+        }
+    })
+</script>
+</body>
+<style>
+
+
+    /*.head-row {*/
+    /*    background-color: #ecf5ff !important;*/
+    /*    color: #409EFF;*/
+    /*    border-bottom-color: #9ac8fb !important;*/
+    /*}*/
+
+</style>
+</html>
