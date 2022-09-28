@@ -1,34 +1,44 @@
-README.md
-generator_code/
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# Compiled class file
+*.class
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
+# Eclipse
 .project
-.settings
-.springBeans
-.sts4-cache
+.classpath
+.settings/
 
-### IntelliJ IDEA ###
+# Intellij
 .idea
-*.iws
-*.iml
 *.ipr
+*.iml
+*.iws
+/.idea/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+# Maven
+target/
+.mvn/
+mvnw
+mvnw.cmd
 
-### VS Code ###
-.vscode/
+# Gradle
+build
+.gradle
+
+# Log file
+*.log
+log/
+
+# out
+**/out/
+
+# Mac
+.DS_Store
+
+# others
+*.jar
+*.war
+*.zip
+*.tar
+*.tar.gz
+*.pid
+*.orig
+generator_code/
